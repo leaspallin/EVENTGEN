@@ -22,6 +22,29 @@ S = {
     "devis_table":     (11, 3),
 }
 
+
+# ---- modules optionnels (cochables) -> slides concernées (0-based) ----
+MODULES = [
+    ("evenement",     "Votre événement (dates)",        [1]),
+    ("programme",     "Programme",                      [2]),
+    ("espace",        "Espace séminaire",               [3]),
+    ("restauration",  "Restauration (Tata Suzanne)",    [4, 5]),
+    ("padel",         "Team building padel",            [6, 7]),
+    ("vestiaires",    "Vestiaires",                     [8]),
+    ("intervention",  "Intervention (ambassadeurs)",    [9]),
+    ("accessibilite", "Accessibilité",                  [10]),
+    ("devis",         "Devis",                          [11]),
+    ("conditions",    "Conditions de règlement",        [12]),
+    ("contacts",      "Contacts",                       [13]),
+]
+
+def _delete_slides(prs, indices):
+    lst = prs.slides._sldIdLst
+    sldIds = list(lst)
+    for idx in sorted(set(indices), reverse=True):
+        if 0 <= idx < len(sldIds):
+            lst.remove(sldIds[idx])
+
 def _shape(slide, sid):
     for sh in slide.shapes:
         if sh.shape_id == sid:
@@ -199,6 +222,13 @@ def build(data):
     _set_cell(tbl, 0, 1, _eur(d["net"]))
     _set_cell(tbl, 1, 1, _eur(d["tva"]))
     _set_cell(tbl, 2, 1, _eur(d["ttc"]))
+
+    include = data.get("include", {})
+    to_delete = []
+    for key, _label, idxs in MODULES:
+        if not include.get(key, True):
+            to_delete += idxs
+    _delete_slides(prs, to_delete)
 
     pptx_io = io.BytesIO()
     prs.save(pptx_io)

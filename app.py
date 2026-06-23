@@ -9,6 +9,17 @@ import generator as g
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# mots-clés permettant de détecter qu'une ligne de devis concerne un module
+DEVIS_KEYWORDS = {
+    "espace":        ["espace", "salle", "séminaire", "seminaire", "bercy", "toronto", "privatisation"],
+    "restauration":  ["restaur", "déjeuner", "dejeuner", "petit-déj", "petit-dej", "tata suzanne",
+                      "boisson", "cocktail", "traiteur", "pause"],
+    "padel":         ["padel", "pétanque", "petanque", "ping-pong", "ping pong", "americano"],
+    "intervention":  ["intervention", "ambassadeur", "tsonga", "ascione", "moreau", "conférenc", "conferenc"],
+    "vestiaires":    ["vestiaire"],
+    "accessibilite": ["navette", "transfert", "parking"],
+}
+
 # ---------------------------------------------------------------- polices
 @st.cache_resource
 def ensure_fonts():
@@ -57,6 +68,16 @@ st.markdown('<div class="allin-sub">Pôle séminaire / event — remplis le form
 col_form, col_out = st.columns([1.25, 1], gap="large")
 
 with col_form:
+    st.subheader("Sections à inclure")
+    st.caption("Coche les modules à faire apparaître dans la proposition. "
+               "La couverture est toujours incluse ; les sections décochées sont retirées du PowerPoint.")
+    include = {}
+    _mcols = st.columns(3)
+    for _i, (_key, _label, _idx) in enumerate(g.MODULES):
+        with _mcols[_i % 3]:
+            include[_key] = st.checkbox(_label, value=True, key=f"inc_{_key}")
+    st.divider()
+
     st.subheader("Client & événement")
     c1, c2 = st.columns(2)
     client = c1.text_input("Nom du client", "BYMYCAR")
@@ -125,6 +146,7 @@ data = {
     "devis_lines": devis_lines,
     "remise": float(remise),
     "tva": float(tva),
+    "include": include,
 }
 
 # -------------------------------------------------- live devis + génération
@@ -143,6 +165,20 @@ with col_out:
       <div class="l big"><span>Total TTC</span><b>{e(d['ttc'])}</b></div>
     </div>
     """, unsafe_allow_html=True)
+
+    # cohérence devis <-> sections : alerter si une ligne concerne un module décoché
+    _labels = [l["label"].lower() for l in devis_lines]
+    _alerts = []
+    for _key, _kws in DEVIS_KEYWORDS.items():
+        if not include.get(_key, True):
+            _hits = [devis_lines[_i]["label"] for _i, _lab in enumerate(_labels)
+                     if any(_k in _lab for _k in _kws)]
+            if _hits:
+                _modlabel = next(lb for k, lb, _ in g.MODULES if k == _key)
+                _alerts.append((_modlabel, _hits))
+    for _modlabel, _hits in _alerts:
+        st.warning(f"⚠ Section **« {_modlabel} »** décochée, mais le devis la facture : "
+                   + " ; ".join(f"« {h} »" for h in _hits))
 
     st.write("")
     safe = "".join(ch if ch.isalnum() else "_" for ch in (client or "PROPOSITION")).strip("_") or "ALLIN"
