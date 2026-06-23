@@ -1,0 +1,5 @@
+streamlit>=1.40
+python-pptx==1.0.2
+lxml>=5.3
+Pillow>=10.4
+pandas>=2.2
